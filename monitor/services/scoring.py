@@ -21,6 +21,7 @@ from monitor.models.enums import (
     GeolocationAccuracy,
     LegalOwnershipType,
     OccupancyStatus,
+    PropertyType,
     RenovationLevel,
     VisitStatus,
 )
@@ -95,6 +96,10 @@ def score_property(
         add("Ocupado", scoring.occupied_penalty)
     elif prop.occupancy_status is OccupancyStatus.UNKNOWN:
         add("Ocupação desconhecida", scoring.unknown_occupancy_penalty)
+
+    # Tipo não identificado
+    if prop.property_type is PropertyType.UNKNOWN:
+        add("Tipo não identificado", scoring.unknown_type_penalty)
 
     # Visita
     if prop.visit_status is VisitStatus.AVAILABLE:

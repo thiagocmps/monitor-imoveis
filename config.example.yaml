@@ -17,6 +17,10 @@ search:
     - APARTMENT
     - HOUSE
 
+  # Imóveis cujo tipo não foi identificado são aceites (com penalidade no
+  # score) para revisão manual. Defina false para os rejeitar.
+  accept_unknown_type: true
+
   explicit_municipalities:
     - Porto
     - Póvoa de Varzim
@@ -137,6 +141,7 @@ scoring:
   clear_legal_data: 5
   unknown_ownership_penalty: -10
   unknown_occupancy_penalty: -8
+  unknown_type_penalty: -10
   occupied_penalty: -25
   visit_unavailable_penalty: -15
   structural_work_penalty: -15

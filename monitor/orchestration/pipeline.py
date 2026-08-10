@@ -24,7 +24,7 @@ from monitor.services.history import HistoryService
 from monitor.services.notifications import Notifier, build_notifier
 from monitor.services.pipeline import normalize_listing
 from monitor.services.scoring import score_property
-from monitor.settings import Settings
+from monitor.settings import Settings, apply_overrides
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,16 @@ async def run_collection(
     initialize_database(db.engine)
     notifier = notifier or build_notifier()
     summary: dict[str, Any] = {}
+
+    # Overrides de configuração definidos no dashboard (aplicam-se nesta recolha).
+    override_session = db.new_session()
+    try:
+        overrides = Repository(override_session).get_override("search")
+    finally:
+        override_session.close()
+    if overrides:
+        settings = apply_overrides(settings, overrides)
+        logger.info("Overrides de configuração aplicados: %s", sorted(overrides))
 
     async with httpx.AsyncClient(
         headers=_HEADERS,

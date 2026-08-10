@@ -35,6 +35,29 @@ def test_automatically_rejected_gets_zero() -> None:
     assert json.loads(reasons) == []
 
 
+def test_unknown_type_penalized() -> None:
+    scoring = ScoringSettings()
+    base = score_property(
+        _prop(property_type=PropertyType.APARTMENT),
+        scoring,
+        SearchSettings(),
+    )[0]
+    unknown = score_property(
+        _prop(property_type=PropertyType.UNKNOWN),
+        scoring,
+        SearchSettings(),
+    )[0]
+    assert unknown == max(0.0, base + scoring.unknown_type_penalty)
+    reasons = json.loads(
+        score_property(
+            _prop(property_type=PropertyType.UNKNOWN),
+            scoring,
+            SearchSettings(),
+        )[2]
+    )
+    assert any("não identificado" in r for r in reasons)
+
+
 def test_good_property_high_score() -> None:
     from monitor.models.enums import LegalOwnershipType
 

@@ -18,6 +18,7 @@ def properties_to_dataframe(rows: list[dict]) -> pd.DataFrame:
         "id",
         "score",
         "classification",
+        "property_type",
         "title",
         "price",
         "currency",

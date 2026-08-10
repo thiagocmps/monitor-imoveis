@@ -6,6 +6,7 @@ import asyncio
 
 from monitor.collectors.base import BaseCollector
 from monitor.collectors.registry import get_registry
+from monitor.database.migrations import initialize_database
 from monitor.database.models import (
     ApplicationEventRecord,
     ErrorRecord,
@@ -122,6 +123,24 @@ def test_run_collection_second_run_updates(tmp_path) -> None:
         assert isinstance(run, SourceRun)
     finally:
         session.close()
+
+
+def test_run_collection_applies_overrides(tmp_path) -> None:
+    _register_fakes()
+    settings = _settings(tmp_path)
+    initialize_database(Database(settings).engine)
+    session = Database(settings).new_session()
+    try:
+        repo = Repository(session)
+        repo.set_override("search", {"maximum_price_eur": 50_000})
+        session.commit()
+    finally:
+        session.close()
+
+    summary = asyncio.run(run_collection(settings, sources=["fake"]))
+
+    assert summary["fake"]["status"] == "COMPLETED"
+    assert summary["fake"]["items_accepted"] == 0
 
 
 def test_run_collection_failure_is_isolated(tmp_path) -> None:

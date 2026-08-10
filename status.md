@@ -1,6 +1,6 @@
 # Monitor Imobiliário — Estado do projeto
 
-> Última atualização: 10-08-2026 · Branch: `main` · `e3aeda6` (inicial)
+> Última atualização: 10-08-2026 · Branch: `main` · `e3aeda6` (inicial) · `c043282` (Docker)
 
 ## Objetivo
 
@@ -92,13 +92,38 @@ detalhes por imóvel (razões, alertas, descrição), eventos recentes e estado 
   `initialize_database()`; `start_source_run` é persistida com commit antes do
   trabalho (a run deixava de existir no rollback de falha).
 
+### Fase: recolha com resultados (dashboard, overrides, UNKNOWN, Citius)
+- **Citius: localização a partir do tribunal** — `municipality_for_tribunal()`
+  (`citius.py`) mapeia o tribunal consultado para o concelho em `geo_pt.json`;
+  `_parse_item` usa-o como fallback quando não há morada explícita (a morada
+  real continua a ter prioridade).
+- **Tipo `UNKNOWN` aceite com penalidade** — `SearchSettings.accept_unknown_type`
+  (default `True`) e `ScoringSettings.unknown_type_penalty` (-10). `UNKNOWN`
+  deixou de ser rejeitado em `apply_filters` (COMMERCIAL/LAND/OTHER continuam
+  excluídos) e é penalizado em `score_property`. Documentado em
+  `config.example.yaml`.
+- **Overrides de configuração via dashboard** — tabela `SettingsOverride`
+  (`models.py`) + `get_override/set_override/clear_override` (`repository.py`);
+  `apply_overrides()` (`settings.py`) aplica chaves planas de `search`, `radius.*`
+  e `scoring.*`; `run_collection()` lê o override `search` e aplica no arranque.
+- **Dashboard** — painel lateral **"Configuração da recolha"**: preço máx, raio
+  (enabled/km), tipos aceites, `accept_unknown_type`, ocupados, ruínas e
+  penalidade de tipo desconhecido, com guardar/repor (aplica-se na próxima
+  recolha); pré-visualização dos critérios sobre os imóveis ativos; mensagem de
+  vazio melhorada (mostra as últimas execuções por fonte e o agendamento do
+  coletor em vez de "Execute `python main.py collect`").
+- **Bug: deduplicação colapsava imóveis do Citius** — todos os anúncios tinham o
+  mesmo `url=FORM_URL`, pelo que 8 aceites colapsavam numa única linha
+  (`novos=1 atualizados=7`). Agora cada processo tem URL único
+  (`consultaPublicaDetalhe.asp?nprocesso=<html_id>`, com fallback por processo);
+  ao vivo passou a `novos=7 atualizados=1`.
+
 ### Verificação
-- **86 testes a passar** (`tests/`): normalization, pipeline, filtering, scoring,
-  deduplication, notifications, orchestration (3 novos: persistência+filter,
-  segunda recolha atualiza, falha isolada).
+- **100 testes a passar** (`tests/`): normalization, pipeline, filtering, scoring,
+  deduplication, notifications, orchestration, citius, overrides.
 - `ruff` limpo nos ficheiros tocados; `compileall` OK.
-- Smoke CLI: `init`, `status`, `sources`, `export --format csv`, `backup
-  --compress` funcionam.
+- Recolha ao vivo em Docker validada (2026-08-10): citius **aceites=8** (era 0),
+  7 imóveis ativos na BD; dashboard com configuração + preview a funcionar.
 - Nota: `datetime.utcnow()` em `models/events.py`, `models.py`, `repository.py`,
   `history.py` gera DeprecationWarning (migrar para `datetime.now(UTC)`).
 
@@ -171,7 +196,8 @@ detalhes por imóvel (razões, alertas, descrição), eventos recentes e estado 
 
 - Repositório: https://github.com/thiagocmps/monitor-imoveis (**privado**), SSH.
 - `e3aeda6` — commit inicial (pipeline, CLI, dashboard, testes, docs).
-- Próximo commit previsto: Docker Compose (ver secção acima) + correções
-  Citius/não-residencial.
+- `c043282` — Docker Compose + correções Citius paginação/não-residencial.
+- Próximo commit: dashboard configurável (overrides), UNKNOWN aceite com
+  penalidade, localização Citius pelo tribunal, URL único por processo Citius.
 - **Ignorados** (`.gitignore`): `.env`, `config.yaml`, `data/*.db`, `logs/`,
   `exports/`, `backups/`, `screenshots/`, `snapshots/`, `.venv/`, caches.

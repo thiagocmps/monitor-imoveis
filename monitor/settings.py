@@ -43,6 +43,9 @@ class RadiusSettings(BaseModel):
 class SearchSettings(BaseModel):
     maximum_price_eur: float = Field(default=140_000, gt=0)
     accepted_property_types: list[str] = ["APARTMENT", "HOUSE"]
+    # Aceita imóveis cujo tipo não foi identificado, com penalidade no score
+    # (para revisão manual). COMMERCIAL/LAND/OTHER continuam rejeitados.
+    accept_unknown_type: bool = True
     explicit_municipalities: list[str] = [
         "Porto",
         "Póvoa de Varzim",
@@ -119,6 +122,7 @@ class ScoringSettings(BaseModel):
     clear_legal_data: float = 5
     unknown_ownership_penalty: float = -10
     unknown_occupancy_penalty: float = -8
+    unknown_type_penalty: float = -10
     occupied_penalty: float = -25
     visit_unavailable_penalty: float = -15
     structural_work_penalty: float = -15
@@ -171,6 +175,46 @@ class Settings(BaseModel):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return load_settings()
+
+
+def apply_overrides(settings: Settings, overrides: dict | None) -> Settings:
+    """Aplica overrides (definidos no dashboard) sobre as definições.
+
+    Suporta chaves planas de `search` (ex.: `maximum_price_eur`,
+    `accept_unknown_type`), `radius.*` (ex.: `radius.maximum_km`) e `scoring.*`.
+    Devolve uma cópia; não modifica o objeto original.
+    """
+    if not overrides:
+        return settings
+
+    search_update: dict[str, Any] = {}
+    radius_update: dict[str, Any] = {}
+    scoring_update: dict[str, Any] = {}
+    for key, value in overrides.items():
+        if key.startswith("radius."):
+            radius_update[key.split(".", 1)[1]] = value
+        elif key in SearchSettings.model_fields:
+            search_update[key] = value
+        elif key.startswith("scoring."):
+            scoring_update[key.split(".", 1)[1]] = value
+        elif key in ScoringSettings.model_fields:
+            scoring_update[key] = value
+
+    search = settings.search
+    if radius_update:
+        search = search.model_copy(
+            update={"radius": search.radius.model_copy(update=radius_update)}
+        )
+    if search_update:
+        search = search.model_copy(update=search_update)
+
+    scoring = settings.scoring
+    if scoring_update:
+        scoring = scoring.model_copy(update=scoring_update)
+
+    if not search_update and not radius_update and not scoring_update:
+        return settings
+    return settings.model_copy(update={"search": search, "scoring": scoring})
 
 
 def load_settings(path: str | Path | None = None) -> Settings:

@@ -75,7 +75,14 @@ def apply_filters(
 
     # Tipo de imóvel
     if prop.property_type not in {PropertyType(t) for t in settings.accepted_property_types}:
-        result.rejected_reasons.append(f"Tipo de imóvel não aceite: {prop.property_type.value}")
+        if prop.property_type is PropertyType.UNKNOWN and settings.accept_unknown_type:
+            result.reasons.append(
+                "Tipo não identificado — aceite para revisão (penalizado no score)"
+            )
+        else:
+            result.rejected_reasons.append(
+                f"Tipo de imóvel não aceite: {prop.property_type.value}"
+            )
 
     # Menções não habitacionais no título/descrição (armazém, garagem,
     # escritório, arrecadação, etc.) mesmo que o tipo detetado seja apartamento.

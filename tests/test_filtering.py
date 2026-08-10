@@ -26,6 +26,34 @@ def test_accepted_in_explicit_municipality_without_coords() -> None:
     assert not result.rejected_reasons
 
 
+def test_unknown_type_accepted_with_flag() -> None:
+    result = apply_filters(
+        _prop(municipality="Vila do Conde", property_type=PropertyType.UNKNOWN),
+        SearchSettings(),
+    )
+    assert result.accepted
+    assert any("revisão" in r for r in result.reasons)
+
+
+def test_unknown_type_rejected_when_flag_off() -> None:
+    settings = SearchSettings(accept_unknown_type=False)
+    result = apply_filters(
+        _prop(municipality="Vila do Conde", property_type=PropertyType.UNKNOWN),
+        settings,
+    )
+    assert not result.accepted
+    assert any("não aceite" in r for r in result.rejected_reasons)
+
+
+def test_commercial_always_rejected_even_with_unknown_flag() -> None:
+    result = apply_filters(
+        _prop(municipality="Vila do Conde", property_type=PropertyType.COMMERCIAL),
+        SearchSettings(),
+    )
+    assert not result.accepted
+    assert any("não aceite" in r for r in result.rejected_reasons)
+
+
 def test_rejected_non_residential_keyword_even_if_apartment_type() -> None:
     result = apply_filters(
         _prop(

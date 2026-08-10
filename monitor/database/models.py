@@ -205,3 +205,13 @@ class ApplicationEventRecord(Base):
     previous_value: Mapped[object | None] = mapped_column(JSON)
     new_value: Mapped[object | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, index=True)
+
+
+class SettingsOverride(Base):
+    __tablename__ = "settings_overrides"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[object] = mapped_column(JSON, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow
+    )

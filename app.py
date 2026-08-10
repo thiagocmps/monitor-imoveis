@@ -13,11 +13,20 @@ from monitor.database.migrations import initialize_database
 from monitor.database.repository import Repository
 from monitor.database.session import Database
 from monitor.services.export import properties_to_dataframe
-from monitor.settings import load_settings
+from monitor.settings import Settings, apply_overrides, load_settings
 
 st.set_page_config(page_title="Monitor Imobiliário", layout="wide")
 
 _CLASSIFICATION_ORDER = ["PRIORITY_HIGH", "ANALYZE", "WATCH", "LOW_PRIORITY", "EXCLUDE"]
+
+_TYPE_LABELS = {
+    "APARTMENT": "Apartamento",
+    "HOUSE": "Casa",
+    "LAND": "Terreno",
+    "COMMERCIAL": "Comercial",
+    "OTHER": "Outro",
+    "UNKNOWN": "Desconhecido",
+}
 
 
 @st.cache_resource
@@ -54,6 +63,7 @@ def _rows(properties: list) -> list[dict]:
             "title": p.title,
             "price": p.price,
             "currency": p.currency,
+            "property_type": p.property_type,
             "usable_area_m2": p.usable_area_m2,
             "price_per_m2": p.price_per_m2,
             "municipality": p.municipality,
@@ -74,16 +84,167 @@ def _rows(properties: list) -> list[dict]:
     ]
 
 
+def _effective_settings() -> Settings:
+    settings = load_settings()
+    db = _database()
+    session = db.new_session()
+    try:
+        overrides = Repository(session).get_override("search")
+    finally:
+        session.close()
+    return apply_overrides(settings, overrides)
+
+
+def _save_override(overrides: dict) -> None:
+    db = _database()
+    session = db.new_session()
+    try:
+        Repository(session).set_override("search", overrides)
+        session.commit()
+    finally:
+        session.close()
+
+
+def _clear_override() -> None:
+    db = _database()
+    session = db.new_session()
+    try:
+        Repository(session).clear_override("search")
+        session.commit()
+    finally:
+        session.close()
+
+
+def _render_collection_config() -> Settings:
+    effective = _effective_settings()
+    search = effective.search
+    st.sidebar.header("Configuração da recolha")
+    st.sidebar.caption("Aplica-se na próxima recolha (coletor automático).")
+    with st.sidebar.form("collection_config"):
+        maximum_price_eur = st.number_input(
+            "Preço máximo (EUR)",
+            min_value=1_000,
+            max_value=1_000_000,
+            step=5_000,
+            value=int(search.maximum_price_eur),
+        )
+        radius_enabled = st.checkbox("Filtrar por raio (km)", value=search.radius.enabled)
+        maximum_km = st.slider(
+            "Raio máximo (km)",
+            min_value=1.0,
+            max_value=100.0,
+            step=1.0,
+            value=float(search.radius.maximum_km),
+            disabled=not radius_enabled,
+        )
+        accepted_types = st.multiselect(
+            "Tipos aceites",
+            options=list(_TYPE_LABELS),
+            default=search.accepted_property_types,
+            format_func=_TYPE_LABELS.get,
+        )
+        accept_unknown = st.checkbox("Aceitar tipo desconhecido", value=search.accept_unknown_type)
+        include_occupied = st.checkbox(
+            "Incluir imóveis ocupados", value=search.include_occupied_properties
+        )
+        include_ruins = st.checkbox("Incluir ruínas", value=search.include_ruins)
+        unknown_penalty = st.number_input(
+            "Penalidade por tipo desconhecido (score)",
+            min_value=-50,
+            max_value=0,
+            step=1,
+            value=int(effective.scoring.unknown_type_penalty),
+        )
+        saved = st.form_submit_button("Guardar", type="primary")
+        reset = st.form_submit_button("Repor predefinições")
+
+    if saved:
+        _save_override(
+            {
+                "maximum_price_eur": float(maximum_price_eur),
+                "accepted_property_types": list(accepted_types) or ["APARTMENT", "HOUSE"],
+                "accept_unknown_type": bool(accept_unknown),
+                "include_occupied_properties": bool(include_occupied),
+                "include_ruins": bool(include_ruins),
+                "radius.enabled": bool(radius_enabled),
+                "radius.maximum_km": float(maximum_km),
+                "scoring.unknown_type_penalty": float(unknown_penalty),
+            }
+        )
+        st.sidebar.success("Configuração guardada — aplica-se na próxima recolha.")
+        st.rerun()
+    if reset:
+        _clear_override()
+        st.sidebar.success("Configuração reposta às predefinições.")
+        st.rerun()
+    return effective
+
+
+def _render_collection_preview(rows: pd.DataFrame, settings: Settings) -> None:
+    search = settings.search
+    matching = rows[rows["price"].fillna(0) <= search.maximum_price_eur]
+    if search.radius.enabled:
+        matching = matching[
+            matching["distance_from_povoa_km"].fillna(0) <= search.radius.maximum_km
+        ]
+    accepted_types = set(search.accepted_property_types)
+    keep = matching["property_type"].apply(
+        lambda value: value in accepted_types
+        or (search.accept_unknown_type and value == "UNKNOWN")
+    )
+    st.caption(
+        f"Pré-visualização dos critérios de recolha (sobre os imóveis ativos): "
+        f"{int(keep.sum())} de {len(rows)} seriam aceites."
+    )
+
+
+def _empty_state_message(config: Settings) -> str:
+    db = _database()
+    session = db.new_session()
+    try:
+        repo = Repository(session)
+        runs = {name: repo.latest_run(name) for name in _enabled_sources()}
+    finally:
+        session.close()
+    lines = []
+    for name, run in runs.items():
+        if run is None:
+            continue
+        found = run.items_found or 0
+        if found == 0:
+            lines.append(f"- **{name}**: sem imóveis encontrados")
+        else:
+            lines.append(
+                f"- **{name}**: {found} imóveis encontrados, nenhum aceite "
+                f"(estado {run.status})"
+            )
+    text = (
+        "Sem imóveis ativos na base de dados. O coletor roda automaticamente "
+        f"(todos os dias às {config.schedule.daily_time}) e também no arranque do "
+        "contentor; ajuste os critérios em **Configuração da recolha** (painel "
+        "lateral) e aguarde a próxima execução."
+    )
+    if lines:
+        text += "\n\nÚltimas execuções:\n\n" + "\n".join(lines)
+    return text
+
+
 def main() -> None:
     rows, summary = _load_data()
-    if rows.empty:
-        st.info("Base de dados sem imóveis ativos. Execute `python main.py collect`.")
-        return
 
     st.title("Monitor Imobiliário")
     st.caption("Oportunidades imobiliárias em fontes públicas portuguesas.")
 
+    config = _render_collection_config()
     _render_kpis(summary, rows)
+
+    if rows.empty:
+        st.warning(_empty_state_message(config))
+        _render_source_runs()
+        _render_recent_events()
+        return
+
+    _render_collection_preview(rows, config)
 
     st.sidebar.header("Filtros")
     available = sorted(rows["source"].dropna().unique())

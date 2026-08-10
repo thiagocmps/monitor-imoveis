@@ -28,10 +28,27 @@ from monitor.browser.network import fetch_html
 from monitor.collectors.base import BaseCollector, CollectorHealth
 from monitor.exceptions import CollectorError
 from monitor.models.raw import RawPropertyListing
+from monitor.services.geocoding import load_municipalities
 
 logger = logging.getLogger(__name__)
 
 FORM_URL = "https://www.citius.mj.pt/portal/consultas/consultasvenda.aspx"
+_DETAIL_URL = "https://www.citius.mj.pt/Portal/consultas/consultaPublicaDetalhe.asp"
+
+
+def municipality_for_tribunal(tribunal_name: str) -> str | None:
+    """Devolve o concelho correspondente ao tribunal, se existir na tabela.
+
+    Usado como fallback de localização: o processo corre no tribunal, e a
+    grande maioria dos bens penhorados está no mesmo concelho. A localização
+    fica com precisão de concelho (MUNICIPALITY), nunca de morada.
+    """
+    if not tribunal_name:
+        return None
+    key = tribunal_name.strip().lower()
+    if key in load_municipalities():
+        return tribunal_name.strip()
+    return None
 
 # Tribunais da região (Comarca do Porto, Porto Este e norte da Braga).
 # Cobrem a área alvo (Póvoa de Varzim + 30 km) e o Porto.
@@ -195,7 +212,8 @@ class CitiusCollector(BaseCollector):
             return None
 
         legal_process, court = _split_process(processo, tribunal_name)
-        url = FORM_URL
+        html_id = _html_id(element)
+        url = _detail_url(html_id, legal_process)
 
         listing = RawPropertyListing(
             source=self.source_name,
@@ -219,12 +237,16 @@ class CitiusCollector(BaseCollector):
         listing.price_value = listing.base_value
         listing.price_text = valor_base
 
-        html_id = _html_id(element)
         if html_id is not None:
             listing.source_listing_id = str(html_id)
             detail = await self._fetch_detail(page, html_id)
             if detail:
                 self._apply_detail(listing, detail)
+
+        # Fallback de localização: sem município explícito, usa o concelho do
+        # tribunal consultado (aproximação com precisão de concelho).
+        if not listing.municipality:
+            listing.municipality = municipality_for_tribunal(tribunal_name)
 
         return listing
 
@@ -370,6 +392,16 @@ def _html_id(element) -> int | None:
         return int(match.group(1))
     except ValueError:
         return None
+
+
+def _detail_url(html_id: int | None, legal_process: str | None) -> str:
+    """URL único por processo: link de detalhe quando existe html_id, senão
+    fragmento com o número de processo para garantir deduplicação correta."""
+    if html_id is not None:
+        return f"{_DETAIL_URL}?tipo_pesquisa=1&nprocesso={html_id}"
+    if legal_process:
+        return f"{FORM_URL}#{legal_process}"
+    return FORM_URL
 
 
 def _split_process(processo: str | None, tribunal_name: str) -> tuple[str | None, str | None]:

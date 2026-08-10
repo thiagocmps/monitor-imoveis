@@ -15,6 +15,7 @@ from monitor.database.models import (
     Property,
     PropertyMatch,
     PropertyObservation,
+    SettingsOverride,
     SourceRun,
     UserDecision,
 )
@@ -25,7 +26,9 @@ from monitor.models.raw import RawPropertyListing
 logger = logging.getLogger(__name__)
 
 
-def property_from_normalized(normalized: NormalizedProperty, raw: RawPropertyListing | None = None) -> Property:
+def property_from_normalized(
+    normalized: NormalizedProperty, raw: RawPropertyListing | None = None
+) -> Property:
     """Constrói um registo Property (ORM) a partir do modelo normalizado."""
     now = datetime.utcnow()
     record = Property(
@@ -229,7 +232,9 @@ class Repository:
 
     # ---- decisions ----
 
-    def set_decision(self, property_id: int, decision: str, notes: str | None = None) -> UserDecision:
+    def set_decision(
+        self, property_id: int, decision: str, notes: str | None = None
+    ) -> UserDecision:
         stmt = select(UserDecision).where(UserDecision.property_id == property_id)
         existing = self.session.scalar(stmt)
         if existing:
@@ -289,7 +294,9 @@ class Repository:
         ).limit(limit)
         return list(self.session.scalars(stmt))
 
-    def events_for_property(self, property_id: int, limit: int = 100) -> list[ApplicationEventRecord]:
+    def events_for_property(
+        self, property_id: int, limit: int = 100
+    ) -> list[ApplicationEventRecord]:
         stmt = (
             select(ApplicationEventRecord)
             .where(ApplicationEventRecord.property_id == property_id)
@@ -297,5 +304,23 @@ class Repository:
             .limit(limit)
         )
         return list(self.session.scalars(stmt))
+
+    # ---- overrides de configuração (definidas no dashboard) ----
+
+    def get_override(self, key: str) -> dict | None:
+        record = self.session.get(SettingsOverride, key)
+        return dict(record.value) if record else None
+
+    def set_override(self, key: str, value: dict) -> None:
+        record = self.session.get(SettingsOverride, key)
+        if record is None:
+            self.session.add(SettingsOverride(key=key, value=value))
+        else:
+            record.value = value
+
+    def clear_override(self, key: str) -> None:
+        record = self.session.get(SettingsOverride, key)
+        if record is not None:
+            self.session.delete(record)
 
 

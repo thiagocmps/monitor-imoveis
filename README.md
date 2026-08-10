@@ -22,7 +22,7 @@ pontuado de **0 a 100** e mantido num histórico com alertas de **novo**,
   remoção de imóveis que desaparecem das fontes.
 - **CLI** completa (Typer) e **dashboard** web (Streamlit).
 - **Exportação** para Excel/CSV e **backups** automáticos com retenção.
-- **Deploy** previsto para Ubuntu/Docker (em roadmap).
+- **Deploy** via Docker Compose (dashboard + coletor agendado); systemd em roadmap.
 
 ## Arquitetura
 
@@ -116,6 +116,11 @@ cp .env.example .env
 Edite `config.yaml` com os seus critérios (preço máximo, concelhos, raio,
 pesos do score, fontes ativas). `config.yaml` e `.env` estão fora do Git.
 
+No **dashboard**, o painel lateral **"Configuração da recolha"** permite
+ajustar preço máximo, raio, tipos aceites e outros critérios sem editar o
+`config.yaml` — são guardados na base de dados (`SettingsOverride`) e aplicados
+na próxima recolha automática.
+
 ## Uso rápido
 
 ```bash
@@ -160,7 +165,7 @@ monitor-imoveis/
 │   ├── database/            # modelos, repository, migrations
 │   ├── models/              # raw, normalized, enums, eventos
 │   └── browser/             # Playwright/Chrome, snapshots
-├── tests/                   # 86 testes unitários
+├── tests/                   # 100 testes unitários
 ├── data/geo_pt.json         # concelhos e coordenadas
 ├── deploy/docker/           # Dockerfile + agendador do coletor
 ├── docker-compose.yml       # Compose principal (dashboard + collector)
@@ -172,7 +177,7 @@ monitor-imoveis/
 ## Roadmap
 
 Ver [`status.md`](status.md) para o estado detalhado e lista de próximos passos
-(Docker Compose, systemd no Ubuntu, CI, coletores em falta, notificações).
+(systemd no Ubuntu, CI, coletores em falta, notificações).
 
 ## Licença
 
