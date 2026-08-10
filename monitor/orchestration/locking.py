@@ -20,7 +20,7 @@ class ExecutionLock:
     """
 
     def __init__(self, path: Path | None = None, *, non_blocking: bool = True) -> None:
-        self.path = path or DEFAULT_LOCK
+        self.path = path or Path(os.getenv("MONITOR_LOCK_FILE", DEFAULT_LOCK))
         self.non_blocking = non_blocking
         self._fd: int | None = None
 

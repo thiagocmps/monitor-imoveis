@@ -281,8 +281,10 @@ class CitiusCollector(BaseCollector):
         listing.raw_data["detail_html"] = detail[:50_000]
 
     async def _has_next_page(self, page) -> bool:
-        disabled = await page.get_attribute(_IDS["next_page"], "disabled")
-        return disabled is None
+        locator = page.locator(_IDS["next_page"])
+        if await locator.count() == 0:
+            return False
+        return not await locator.first.is_disabled()
 
     async def _click_and_wait(self, page, selector: str, browser_settings) -> None:
         await self._postback(

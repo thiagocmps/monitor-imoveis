@@ -26,6 +26,32 @@ def test_accepted_in_explicit_municipality_without_coords() -> None:
     assert not result.rejected_reasons
 
 
+def test_rejected_non_residential_keyword_even_if_apartment_type() -> None:
+    result = apply_filters(
+        _prop(
+            municipality="Porto",
+            title="Fração autónoma destinada a escritório",
+            description="Fração autónoma no Porto destinada a escritório.",
+        ),
+        SearchSettings(),
+    )
+    assert not result.accepted
+    assert any("não habitacional" in r or "não aceite" in r for r in result.rejected_reasons)
+
+
+def test_rejected_warehouse_keyword() -> None:
+    result = apply_filters(
+        _prop(
+            municipality="Porto",
+            title="Apartamento",
+            description="Fração autónoma que inclui armazém.",
+        ),
+        SearchSettings(),
+    )
+    assert not result.accepted
+    assert any("armazém" in r for r in result.rejected_reasons)
+
+
 def test_accepted_within_radius() -> None:
     # ~10 km da Póvoa de Varzim.
     result = apply_filters(

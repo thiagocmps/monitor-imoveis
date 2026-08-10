@@ -203,10 +203,10 @@ def detect_property_type(
     combined = " ".join(x for x in (title, description, typology) if x)
     haystack = normalize_text(combined)
 
-    if "fracao autonoma" in haystack or "apartamento" in haystack:
-        return PropertyType.APARTMENT
-    if "moradia" in haystack or "vivenda" in haystack or "casa" in haystack:
-        return PropertyType.HOUSE
+    # Usos não habitacionais têm prioridade: uma "fração autónoma destinada a
+    # escritório" é comercial, não um apartamento.
+    if any(normalize_text(p) in haystack for p in _COMMERCIAL):
+        return PropertyType.COMMERCIAL
     if (
         "terreno" in haystack
         or "lote" in haystack
@@ -215,9 +215,36 @@ def detect_property_type(
         or "solo" in haystack
     ):
         return PropertyType.LAND
-    if "loja" in haystack or "escritório" in haystack or "escritorio" in haystack:
-        return PropertyType.COMMERCIAL
+    if "moradia" in haystack or "vivenda" in haystack or "casa" in haystack:
+        return PropertyType.HOUSE
+    if "fracao autonoma" in haystack or "apartamento" in haystack:
+        return PropertyType.APARTMENT
     return PropertyType.UNKNOWN
+
+
+_COMMERCIAL = [
+    "loja",
+    "escritório",
+    "escritorio",
+    "armazém",
+    "armazem",
+    "garagem",
+    "lugar de estacionamento",
+    "arrecadação",
+    "arrecadacao",
+    "sala comercial",
+    "espaço comercial",
+    "espaço de serviços",
+    "espaço de servicos",
+    "comércio",
+    "comercio",
+    "destinada a escritório",
+    "destinado a escritório",
+    "destinada a escritorio",
+    "destinado a escritorio",
+    "serviços",
+    "servicos",
+]
 
 
 # ---------------------------------------------------------------

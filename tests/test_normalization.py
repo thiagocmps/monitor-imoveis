@@ -99,6 +99,9 @@ def test_compute_price_per_m2() -> None:
     [
         ("Apartamento T2", PropertyType.APARTMENT),
         ("Fração autónoma destinada a habitação", PropertyType.APARTMENT),
+        ("Fração autónoma destinada a escritório", PropertyType.COMMERCIAL),
+        ("FRAÇÃO AUTÓNOMA NO PORTO DESTINADA A ESCRITÓRIO", PropertyType.COMMERCIAL),
+        ("Fração autónoma tipo loja", PropertyType.COMMERCIAL),
         ("Moradia em bom estado", PropertyType.HOUSE),
         ("Vivenda T3", PropertyType.HOUSE),
         ("Terreno urbano", PropertyType.LAND),

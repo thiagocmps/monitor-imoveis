@@ -83,6 +83,29 @@ pip install -r requirements.txt        # runtime
 pip install -r requirements-dev.txt    # testes/lint (opcional)
 ```
 
+## Docker (recomendado)
+
+O Compose sobe dois serviços: **dashboard** (Streamlit em `:8501`) e
+**collector** (recolha diária). Dados persistentes em `data/`, `backups/`,
+`logs/`, `exports/`, `screenshots/`, `snapshots/`.
+
+```bash
+docker compose up --build -d
+```
+
+- Painel: http://localhost:8501
+- Primeira recolha: imediata no arranque; depois diária às `07:30`
+  (`schedule.daily_time`).
+- Sem `config.yaml` o Compose usa `config.example.yaml`; crie um para ajustar.
+- Variáveis de ambiente (`.env`): `TZ`, `APP_ENV`, `STREAMLIT_PASSWORD`,
+  `COLLECTOR_RUN_ON_START` (default `true`), `USER_ID`/`GROUP_ID` (default `1000`).
+- Os contentores correm como o UID do host para não criar ficheiros `root`.
+- Logs: `docker compose logs -f collector`.
+- `INSTALL_BROWSER=0` no build salta o Chromium do Playwright (útil sem acesso
+  ao CDN; o painel funciona, o Citius deixa de recolher).
+
+Para manter tudo a correr e reconstruir: `docker compose up -d --build`.
+
 ## Configuração
 
 ```bash
@@ -137,9 +160,11 @@ monitor-imoveis/
 │   ├── database/            # modelos, repository, migrations
 │   ├── models/              # raw, normalized, enums, eventos
 │   └── browser/             # Playwright/Chrome, snapshots
-├── tests/                   # 81 testes unitários
+├── tests/                   # 86 testes unitários
 ├── data/geo_pt.json         # concelhos e coordenadas
-├── deploy/                  # Ubuntu/Docker (roadmap)
+├── deploy/docker/           # Dockerfile + agendador do coletor
+├── docker-compose.yml       # Compose principal (dashboard + collector)
+├── deploy/ubuntu/           # systemd (roadmap)
 ├── scripts/                 # scripts de agendamento (roadmap)
 └── .github/workflows/       # CI (roadmap)
 ```

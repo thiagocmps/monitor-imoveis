@@ -21,7 +21,10 @@ from monitor.models.enums import (
 )
 from monitor.models.normalized import NormalizedProperty
 from monitor.services.geocoding import haversine_km
-from monitor.services.normalization import municipalities_equal
+from monitor.services.normalization import (
+    detect_non_residential_exclusion,
+    municipalities_equal,
+)
 from monitor.settings import SearchSettings
 
 
@@ -73,6 +76,14 @@ def apply_filters(
     # Tipo de imóvel
     if prop.property_type not in {PropertyType(t) for t in settings.accepted_property_types}:
         result.rejected_reasons.append(f"Tipo de imóvel não aceite: {prop.property_type.value}")
+
+    # Menções não habitacionais no título/descrição (armazém, garagem,
+    # escritório, arrecadação, etc.) mesmo que o tipo detetado seja apartamento.
+    non_residential, reasons = detect_non_residential_exclusion(
+        prop.title, prop.description, prop.property_type
+    )
+    if non_residential:
+        result.rejected_reasons.extend(reasons)
 
     # Estado jurídico
     if prop.legal_status is LegalStatus.AUTOMATICALLY_REJECTED:

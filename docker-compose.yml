@@ -1,0 +1,72 @@
+# Monitor Imobiliário — Compose principal.
+#
+#   docker compose up --build -d
+#
+# Serviços:
+#   dashboard  — Streamlit em http://localhost:8501
+#   collector  — recolha diária (config.yaml -> schedule.daily_time, default 07:30)
+#
+# Configuração:
+#   - Sem config.yaml: usa config.example.yaml (montado como config.yaml).
+#   - Com config.yaml: é este o ficheiro usado.
+#   - Variáveis do .env: TZ, APP_ENV, STREAMLIT_PASSWORD, COLLECTOR_RUN_ON_START.
+#   - Dados persistentes em data/, backups/, logs/, exports/, screenshots/, snapshots/.
+#
+# IMAGEM da app partilhada pelas duas serviços (uma única build).
+name: monitor-imoveis
+
+x-app-environment: &app-environment
+  TZ: ${TZ:-Europe/Lisbon}
+  APP_ENV: ${APP_ENV:-production}
+  STREAMLIT_PASSWORD: ${STREAMLIT_PASSWORD:-}
+  COLLECTOR_RUN_ON_START: ${COLLECTOR_RUN_ON_START:-true}
+
+x-app-volumes: &app-volumes
+  - ./data:/app/data
+  - ./backups:/app/backups
+  - ./logs:/app/logs
+  - ./exports:/app/exports
+  - ./screenshots:/app/screenshots
+  - ./snapshots:/app/snapshots
+  - ./${CONFIG_FILE:-config.example.yaml}:/app/config.yaml:ro
+
+# Corre como o utilizador do host (USER_ID/GROUP_ID) para que os ficheiros
+# nos volumes (data/, logs/, backups/, ...) pertençam ao utilizador real.
+x-app-user: &app-user
+  user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
+
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile
+    image: monitor-imoveis:${TAG:-latest}
+    container_name: monitor-dashboard
+    restart: unless-stopped
+    <<: *app-user
+    command: ["python", "-m", "streamlit", "run", "app.py",
+              "--server.port=8501", "--server.address=0.0.0.0",
+              "--server.headless=true", "--browser.gatherUsageStats=false"]
+    ports:
+      - "8501:8501"
+    environment: *app-environment
+    volumes: *app-volumes
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  collector:
+    image: monitor-imoveis:${TAG:-latest}
+    container_name: monitor-collector
+    restart: unless-stopped
+    <<: *app-user
+    command: ["python", "deploy/docker/collector_scheduler.py"]
+    environment:
+      <<: *app-environment
+      # Lock fora do volume de dados para não criar ficheiros root no host.
+      MONITOR_LOCK_FILE: /tmp/collector.lock
+    volumes: *app-volumes

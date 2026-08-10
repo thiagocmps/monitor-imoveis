@@ -1,6 +1,6 @@
 # Monitor Imobiliário — Estado do projeto
 
-> Última atualização: 10-08-2026 · Branch: `main` (1 commit inicial)
+> Última atualização: 10-08-2026 · Branch: `main` · `e3aeda6` (inicial)
 
 ## Objetivo
 
@@ -93,7 +93,7 @@ detalhes por imóvel (razões, alertas, descrição), eventos recentes e estado 
   trabalho (a run deixava de existir no rollback de falha).
 
 ### Verificação
-- **81 testes a passar** (`tests/`): normalization, pipeline, filtering, scoring,
+- **86 testes a passar** (`tests/`): normalization, pipeline, filtering, scoring,
   deduplication, notifications, orchestration (3 novos: persistência+filter,
   segunda recolha atualiza, falha isolada).
 - `ruff` limpo nos ficheiros tocados; `compileall` OK.
@@ -102,17 +102,49 @@ detalhes por imóvel (razões, alertas, descrição), eventos recentes e estado 
 - Nota: `datetime.utcnow()` em `models/events.py`, `models.py`, `repository.py`,
   `history.py` gera DeprecationWarning (migrar para `datetime.now(UTC)`).
 
+### Docker Compose (feito)
+- `docker-compose.yml` principal na raiz: serviços `dashboard` (Streamlit
+  `:8501`, com healthcheck) e `collector` (agendador diário).
+- `deploy/docker/Dockerfile` — `python:3.14-slim`, dependências, Chromium do
+  Playwright (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), `PYTHONPATH=/app`.
+- `deploy/docker/collector_scheduler.py` — recolha imediata no arranque
+  (`COLLECTOR_RUN_ON_START`) e depois diária (`schedule.daily_time`), com
+  `ExecutionLock` e `TZ` correto.
+- `.dockerignore` exclui `.env`, `config.yaml`, `data/*.db`, `data/*.lock`,
+  `logs/`, `exports/`, `backups/`, `screenshots/`, `snapshots/`.
+- **Testado ao vivo em Docker**: recolha real completa (citius 54 + leilosoc 36
+  + leilon 9; 74 páginas), scheduler agendou para 07:30, dashboard saudável,
+  sem falhas.
+- Operação: contentores correm como **UID/GID do host** (`USER_ID`/`GROUP_ID`,
+  default 1000) — ficheiros em `data/`, `logs/` etc. ficam `thiago`, não `root`;
+  lock do coletor movido para `/tmp` via `MONITOR_LOCK_FILE`.
+
+### Bugs descobertos e corrigidos durante o teste Docker
+- **Citius: paginação com timeouts** (`citius.py` `_has_next_page` usava
+  `get_attribute`, que espera 30 s pelo botão; tribunais de página única não têm
+  `btnNextPage` → timeout). Corrigido com `locator.count()` + `is_disabled()`
+  (não bloqueante). Verificado ao vivo: Póvoa de Varzim 0, Vila do Conde 1,
+  Porto 30, Matosinhos 0 — sem timeouts.
+- **"Fração autónoma destinada a escritório" aceite como APARTMENT**: a fração
+  de escritório não é residencial e foi aceite indevidamente. Dupla correção:
+  - `detect_property_type` (`normalization.py`) agora verifica usos comerciais
+    (`_COMMERCIAL`: loja, escritório, armazém, garagem, arrecadação, comércio,
+    serviços, etc.) antes dos residenciais;
+  - `apply_filters` (`filtering.py`) passou a chamar
+    `detect_non_residential_exclusion()` (função que existia mas nunca era
+    usada) como segunda linha de defesa por keywords.
+  - Verificado ao vivo: leilon passou de `aceites=1` para `aceites=0`.
+
 ## Por fazer (roadmap)
 
 ### Curto prazo
-- [ ] **Docker Compose**: `deploy/docker/` com serviços `collector` (cron) e
-      `dashboard`; volumes para `data/`, `backups/`, `logs/`.
+- [x] **Docker Compose**: `docker-compose.yml` (raiz) com `dashboard` + `collector`
+      (ver secção Docker Compose acima).
 - [ ] **Deploy Ubuntu**: `deploy/ubuntu/` — systemd units
       (`monitor-collector.service` via `OnCalendar`, `monitor-dashboard.service`)
       e script de instalação.
 - [ ] `scripts/windows/` — scripts de agendamento para Windows (Task Scheduler).
 - [ ] CI/CD: `.github/workflows/` — lint (ruff) + testes (pytest) por PR.
-- [ ] Push inicial do projeto (ver secção Git) — **pendente até este documento**.
 
 ### Funcionalidades
 - [ ] Coletores restantes: eleiloes, financas (Portal das Finanças), leilosil,
@@ -120,13 +152,14 @@ detalhes por imóvel (razões, alertas, descrição), eventos recentes e estado 
 - [ ] Notificações reais (email/Telegram) quando `NOTIFICATIONS_ENABLED=true`.
 - [ ] Autenticação no Streamlit via `STREAMLIT_PASSWORD` (base já prevista no
       `.env.example`).
-- [ ] Agendador interno (`schedule.daily_time`) ou documentar cron no deploy.
+- [ ] Agendador interno (`schedule.daily_time`) — já implementado no contentor
+      `collector`; falta um modo nativo (sem Docker) via cron/systemd.
 - [ ] Migrar `datetime.utcnow()` → `datetime.now(UTC)` e eliminar warnings.
 - [ ] Correr `mypy` no projeto (config já presente no `pyproject.toml`).
 - [ ] Limpar 36 lints pré-existentes fora dos ficheiros tocados (`enums.py`,
       `backup.py`, `deduplication.py`, `history.py`, `status_detection.py`).
-- [ ] Verificação `run_collection` contra as fontes reais (Citius exige Chrome +
-      Playwright; Chromium do Playwright indisponível por rede → `channel=auto`).
+- [x] Verificação `run_collection` contra as fontes reais — feita em Docker
+      (citius 54, leilosoc 36, leilon 9; sem timeouts de paginação).
 
 ### Qualidade / operação
 - [ ] Testes de integração marcados `integration`/`live` contra fontes reais.
@@ -136,11 +169,9 @@ detalhes por imóvel (razões, alertas, descrição), eventos recentes e estado 
 
 ## Git
 
-- Repositório: **privado**, owner `thiagocmps` (GitHub), SSH.
-- Estado: sem commits até à data deste documento; todos os ficheiros untracked.
-- Estrutura de um primeiro commit:
-  `status.md` + `README.md` + `.github/` + `deploy/` + `scripts/` + `config.example.yaml`
-  + `monitor/` + `main.py` + `app.py` + `tests/` + `pyproject.toml` + `requirements*`
-  + `.env.example` + ficheiros de config (`.editorconfig`, `.gitattributes`, `.gitignore`).
+- Repositório: https://github.com/thiagocmps/monitor-imoveis (**privado**), SSH.
+- `e3aeda6` — commit inicial (pipeline, CLI, dashboard, testes, docs).
+- Próximo commit previsto: Docker Compose (ver secção acima) + correções
+  Citius/não-residencial.
 - **Ignorados** (`.gitignore`): `.env`, `config.yaml`, `data/*.db`, `logs/`,
   `exports/`, `backups/`, `screenshots/`, `snapshots/`, `.venv/`, caches.
