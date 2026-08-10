@@ -1,0 +1,148 @@
+# ============================================================
+# Monitor Imobiliário — Configuração de exemplo
+# Copie para config.yaml e ajuste os valores.
+# ============================================================
+
+application:
+  name: "Monitor Imobiliário"
+  timezone: "Europe/Lisbon"
+  locale: "pt-PT"
+  database_path: "data/imoveis.db"
+  headless: true
+
+search:
+  maximum_price_eur: 140000
+
+  accepted_property_types:
+    - APARTMENT
+    - HOUSE
+
+  explicit_municipalities:
+    - Porto
+    - Póvoa de Varzim
+    - Vila do Conde
+    - Esposende
+
+  radius:
+    enabled: true
+    center_name: "Póvoa de Varzim"
+    latitude: 41.3804
+    longitude: -8.7609
+    maximum_km: 30
+
+  exclude_non_full_rights: true
+  include_occupied_properties: true
+  include_ruins: true
+
+sources:
+  eleiloes:
+    enabled: false
+    delay_seconds: 5
+    maximum_pages: 3
+
+  citius:
+    enabled: true
+    delay_seconds: 5
+    maximum_pages: 3
+    # Tribunais a consultar (IDs do formulário do Citius).
+    # Vazio = lista regional predefinida (Comarca do Porto + redondezas).
+    # Para consultar todos os tribunais, use all_tribunals: true.
+    tribunals: []
+    all_tribunals: false
+
+  financas:
+    enabled: false
+    delay_seconds: 6
+    maximum_pages: 3
+
+  leilosoc:
+    enabled: true
+    delay_seconds: 5
+    maximum_pages: 3
+
+  leilosil:
+    enabled: false
+    delay_seconds: 5
+    maximum_pages: 3
+
+  leilon:
+    enabled: true
+    delay_seconds: 5
+    maximum_pages: 3
+
+  leiloversatil:
+    enabled: false
+    delay_seconds: 5
+    maximum_pages: 3
+
+  caixa_imobiliario:
+    enabled: false
+    delay_seconds: 5
+    maximum_pages: 3
+
+  imovirtual:
+    enabled: false
+    delay_seconds: 6
+    maximum_pages: 3
+
+  idealista:
+    enabled: false
+    delay_seconds: 8
+    maximum_pages: 2
+
+  olx:
+    enabled: false
+    delay_seconds: 8
+    maximum_pages: 2
+
+browser:
+  navigation_timeout_seconds: 45
+  selector_timeout_seconds: 20
+  # auto = Chrome instalado, depois Chromium do Playwright; alternativas:
+  # chrome | chromium | msedge | firefox | bundled
+  channel: auto
+  block_images: true
+  block_fonts: true
+  block_media: true
+  save_screenshot_on_error: true
+  save_html_on_error: true
+  concurrency: 1
+
+execution:
+  maximum_total_minutes: 45
+  prevent_parallel_runs: true
+  process_priority: low
+
+history:
+  missing_checks_before_removed: 3
+
+schedule:
+  daily_time: "07:30"
+
+scoring:
+  price_up_to_70000: 25
+  price_up_to_100000: 20
+  price_up_to_120000: 12
+  price_up_to_140000: 5
+  full_ownership: 15
+  autonomous_unit: 12
+  vacant: 12
+  visit_available: 8
+  light_works: 10
+  medium_works: 8
+  full_renovation: 4
+  recent_price_drop: 5
+  private_negotiation: 3
+  priority_location: 5
+  clear_legal_data: 5
+  unknown_ownership_penalty: -10
+  unknown_occupancy_penalty: -8
+  occupied_penalty: -25
+  visit_unavailable_penalty: -15
+  structural_work_penalty: -15
+  ruin_penalty: -20
+  incomplete_data_penalty: -10
+  possible_duplicate_penalty: -5
+  above_local_reference_penalty: -10
+  short_deadline_penalty: -5
+  imprecise_location_penalty: -5

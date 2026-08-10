@@ -1,0 +1,23 @@
+# Ficheiros de dados e estado pessoal
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+playwright-report/
+
+# Configuração e segredos
+.env
+config.yaml
+
+# Dados gerados
+data/*.db
+data/*.db-*
+logs/*
+screenshots/*
+snapshots/*
+exports/*
+backups/*
