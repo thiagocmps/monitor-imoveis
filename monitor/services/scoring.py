@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from datetime import UTC
 
 from monitor.models.enums import (
     Classification,
@@ -26,6 +27,7 @@ from monitor.models.enums import (
     VisitStatus,
 )
 from monitor.models.normalized import NormalizedProperty
+from monitor.services.normalization import municipalities_equal
 from monitor.settings import ScoringSettings, SearchSettings
 
 
@@ -88,6 +90,13 @@ def score_property(
         add("Fração autónoma integral", scoring.autonomous_unit)
     elif prop.legal_ownership_type is LegalOwnershipType.UNKNOWN:
         add("Propriedade desconhecida", scoring.unknown_ownership_penalty)
+
+    # Dados jurídicos claros
+    if (
+        prop.legal_ownership_type
+        and prop.legal_ownership_type is not LegalOwnershipType.UNKNOWN
+    ):
+        add("Dados jurídicos claros", scoring.clear_legal_data)
 
     # Ocupação
     if prop.occupancy_status is OccupancyStatus.VACANT:
@@ -159,13 +168,13 @@ def score_property(
 def _now():
     from datetime import datetime
 
-    return datetime.utcnow()
+    return datetime.now(UTC)
 
 
 def _is_priority_location(prop: NormalizedProperty, search: SearchSettings) -> bool:
     if not prop.municipality:
         return False
     for name in search.explicit_municipalities:
-        if name and prop.municipality.strip().lower() == name.strip().lower():
+        if name and municipalities_equal(prop.municipality, name):
             return True
     return False

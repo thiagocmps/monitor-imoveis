@@ -6,7 +6,7 @@ distância ao mar, conforme os requisitos do projeto.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     JSON,
@@ -25,7 +25,8 @@ from monitor.database.base import Base
 
 
 def _utcnow() -> datetime:
-    return datetime.utcnow()
+
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class Property(Base):

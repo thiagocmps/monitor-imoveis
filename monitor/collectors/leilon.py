@@ -138,7 +138,7 @@ class LeilonCollector(BaseCollector):
 
 
 def _lot_id_from_url(url: str) -> str | None:
-    match = re.search(r"/lot/id/(\d+)", url)
+    match = re.search(r"/(?:lot|view)/id/(\d+)", url)
     return match.group(1) if match else None
 
 

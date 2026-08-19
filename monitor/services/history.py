@@ -17,7 +17,7 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 
 from monitor.database.models import (
     Property,
@@ -62,7 +62,7 @@ class HistoryService:
         *,
         observed_at: datetime | None = None,
     ) -> UpsertResult:
-        observed_at = observed_at or datetime.utcnow()
+        observed_at = observed_at or datetime.now(UTC).replace(tzinfo=None)
         existing = self._find_existing(normalized)
 
         if existing is None:
@@ -249,7 +249,7 @@ class HistoryService:
             recent = self.repository.observations_for(prop.id)
             if recent and len(recent) >= self.settings.missing_checks_before_removed:
                 prop.status = ListingStatus.REMOVED.value
-                prop.removed_at = datetime.utcnow()
+                prop.removed_at = datetime.now(UTC).replace(tzinfo=None)
                 events.append(
                     ApplicationEvent(
                         event_type=EventType.REMOVED,

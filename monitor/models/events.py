@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from monitor.models.enums import EventType
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class ApplicationEvent(BaseModel):
@@ -17,4 +21,4 @@ class ApplicationEvent(BaseModel):
     message: str = ""
     previous_value: Any = None
     new_value: Any = None
-    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    created_at: datetime = Field(default_factory=_utc_now)

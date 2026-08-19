@@ -395,12 +395,17 @@ def _html_id(element) -> int | None:
 
 
 def _detail_url(html_id: int | None, legal_process: str | None) -> str:
-    """URL único por processo: link de detalhe quando existe html_id, senão
-    fragmento com o número de processo para garantir deduplicação correta."""
-    if html_id is not None:
-        return f"{_DETAIL_URL}?tipo_pesquisa=1&nprocesso={html_id}"
+    """URL único por processo.
+
+    O detalhe do Citius é acessível apenas dentro de uma sessão de browser
+    (protegido por Dynatrace), por isso guardamos a URL do formulário de
+    pesquisa com o número de processo como parâmetro de consulta — garante
+    unicidade por processo e sobrevive à normalização de URL.
+    """
     if legal_process:
-        return f"{FORM_URL}#{legal_process}"
+        return f"{FORM_URL}?nprocesso={legal_process}"
+    if html_id is not None:
+        return f"{FORM_URL}?html_id={html_id}"
     return FORM_URL
 
 

@@ -5,7 +5,7 @@ Lançar com:  streamlit run app.py   (ou  python main.py dashboard)
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import streamlit as st
@@ -45,9 +45,10 @@ def _load_data() -> tuple[pd.DataFrame, dict[str, int]]:
         repo = Repository(session)
         properties = repo.list_properties(status="ACTIVE")
         rows = properties_to_dataframe(_rows(properties))
+        since = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=24)
         summary = {
             "active": len(properties),
-            "new_24h": repo.count_new_since(datetime.utcnow() - timedelta(hours=24)),
+            "new_24h": repo.count_new_since(since),
         }
     finally:
         session.close()

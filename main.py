@@ -259,6 +259,7 @@ def _rows_from_properties(properties: list[Property]) -> list[dict[str, Any]]:
             "title": p.title,
             "price": p.price,
             "currency": p.currency,
+            "property_type": p.property_type,
             "usable_area_m2": p.usable_area_m2,
             "price_per_m2": p.price_per_m2,
             "municipality": p.municipality,

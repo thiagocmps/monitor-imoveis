@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -30,7 +30,7 @@ def property_from_normalized(
     normalized: NormalizedProperty, raw: RawPropertyListing | None = None
 ) -> Property:
     """Constrói um registo Property (ORM) a partir do modelo normalizado."""
-    now = datetime.utcnow()
+    now = datetime.now(UTC).replace(tzinfo=None)
     record = Property(
         canonical_fingerprint=normalized.canonical_fingerprint,
         source=normalized.source,
@@ -201,7 +201,7 @@ class Repository:
         errors_count: int = 0,
         error_message: str | None = None,
     ) -> None:
-        run.finished_at = datetime.utcnow()
+        run.finished_at = datetime.now(UTC).replace(tzinfo=None)
         run.status = status
         run.pages_visited = pages_visited
         run.items_found = items_found
@@ -240,7 +240,7 @@ class Repository:
         if existing:
             existing.decision = decision
             existing.notes = notes
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(UTC).replace(tzinfo=None)
             return existing
         record = UserDecision(property_id=property_id, decision=decision, notes=notes)
         self.session.add(record)

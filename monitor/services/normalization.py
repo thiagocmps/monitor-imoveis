@@ -12,7 +12,6 @@ import unicodedata
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 from monitor.models.enums import (
-    GeolocationAccuracy,
     KeyDeliveryStatus,
     LegalOwnershipType,
     LegalStatus,
@@ -177,15 +176,6 @@ def normalize_url(url: str) -> str:
         return urlunsplit((parts.scheme, parts.netloc.lower(), parts.path, query_string, ""))
     except ValueError:
         return url
-
-
-def normalize_address(text: str | None) -> str | None:
-    if not text:
-        return None
-    cleaned = clean_display_text(text)
-    if not cleaned:
-        return None
-    return cleaned
 
 
 def compute_price_per_m2(price: float | None, area_m2: float | None) -> float | None:
@@ -503,7 +493,7 @@ def classify_sale_method(text: str | None) -> SaleMethod:
         return SaleMethod.AUCTION
     sealed = ["carta fechada", "proposta em carta fechada", "propostas em carta fechada"]
     if any(normalize_text(p) in haystack for p in sealed):
-        return SaleMethod.SEALED_PROPSAL
+        return SaleMethod.SEALED_PROPOSAL
     private = [
         "negociação particular",
         "negociacao particular",
@@ -513,22 +503,3 @@ def classify_sale_method(text: str | None) -> SaleMethod:
     if any(normalize_text(p) in haystack for p in private):
         return SaleMethod.PRIVATE_NEGOTIATION
     return SaleMethod.UNKNOWN
-
-
-def geolocation_accuracy_for(
-    latitude: float | None,
-    longitude: float | None,
-    *hints: str | None,
-) -> GeolocationAccuracy:
-    """Determina a precisão geográfica com honestidade."""
-    if latitude is not None and longitude is not None:
-        if hints[0]:
-            return GeolocationAccuracy.ADDRESS
-        if hints[1]:
-            return GeolocationAccuracy.POSTAL_CODE
-        return GeolocationAccuracy.APPROXIMATE
-    if hints[2]:
-        return GeolocationAccuracy.PARISH
-    if hints[3]:
-        return GeolocationAccuracy.MUNICIPALITY
-    return GeolocationAccuracy.UNKNOWN
