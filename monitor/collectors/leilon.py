@@ -17,6 +17,7 @@ from bs4 import BeautifulSoup, Tag
 from monitor.browser.network import fetch_html, tag_text
 from monitor.collectors.base import BaseCollector, CollectorHealth
 from monitor.models.raw import RawPropertyListing
+from monitor.services.normalization import parse_price
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,7 @@ class LeilonCollector(BaseCollector):
         if value_text:
             listing.base_value_text = value_text
             listing.minimum_value_text = value_text
+            listing.price_value = parse_price(value_text)
 
         status_text = tag_text(card, ".lot-status .value")
         listing.listing_status_text = status_text

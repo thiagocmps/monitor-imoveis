@@ -11,7 +11,7 @@ application:
   headless: true
 
 search:
-  maximum_price_eur: 140000
+  maximum_price_eur: 300000
 
   accepted_property_types:
     - APARTMENT
@@ -65,7 +65,7 @@ sources:
     maximum_pages: 3
 
   leilosil:
-    enabled: false
+    enabled: true
     delay_seconds: 5
     maximum_pages: 3
 
@@ -75,7 +75,7 @@ sources:
     maximum_pages: 3
 
   leiloversatil:
-    enabled: false
+    enabled: true
     delay_seconds: 5
     maximum_pages: 3
 
@@ -85,7 +85,7 @@ sources:
     maximum_pages: 3
 
   imovirtual:
-    enabled: false
+    enabled: true
     delay_seconds: 6
     maximum_pages: 3
 
@@ -96,7 +96,7 @@ sources:
 
   olx:
     enabled: false
-    delay_seconds: 8
+    delay_seconds: 10
     maximum_pages: 2
 
 browser:

@@ -193,6 +193,16 @@ def detect_property_type(
     combined = " ".join(x for x in (title, description, typology) if x)
     haystack = normalize_text(combined)
 
+    # Se o título indica claramente um tipo residencial (apartamento, moradia),
+    # esse sinal prevalece sobre menções pontuais a "escritório" na descrição.
+    title_norm = normalize_text(title or "")
+    if any(normalize_text(p) in title_norm for p in _COMMERCIAL):
+        return PropertyType.COMMERCIAL
+    if "moradia" in title_norm or "vivenda" in title_norm or "casa" in title_norm:
+        return PropertyType.HOUSE
+    if "apartamento" in title_norm:
+        return PropertyType.APARTMENT
+
     # Usos não habitacionais têm prioridade: uma "fração autónoma destinada a
     # escritório" é comercial, não um apartamento.
     if any(normalize_text(p) in haystack for p in _COMMERCIAL):
@@ -401,8 +411,10 @@ def detect_non_residential_exclusion(
         return True, [f"Tipo não aceite: {property_type.value}"]
     combined = " ".join(x for x in (title, description) if x)
     haystack = normalize_text(combined)
+    title_norm = normalize_text(title or "")
     for pattern in _NON_RESIDENTIAL:
-        if normalize_text(pattern) in haystack:
+        pat_norm = normalize_text(pattern)
+        if pat_norm in haystack and pat_norm in title_norm:
             return True, [f"Menção não habitacional: '{pattern}'"]
     return False, []
 

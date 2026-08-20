@@ -67,17 +67,28 @@ def test_rejected_non_residential_keyword_even_if_apartment_type() -> None:
     assert any("não habitacional" in r or "não aceite" in r for r in result.rejected_reasons)
 
 
-def test_rejected_warehouse_keyword() -> None:
+def test_rejected_warehouse_keyword_in_title() -> None:
     result = apply_filters(
         _prop(
             municipality="Porto",
-            title="Apartamento",
-            description="Fração autónoma que inclui armazém.",
+            title="Armazém Industrial",
         ),
         SearchSettings(),
     )
     assert not result.accepted
-    assert any("armazém" in r for r in result.rejected_reasons)
+    assert any("armazém" in r or "Tipo" in r for r in result.rejected_reasons)
+
+
+def test_accepted_warehouse_in_description_only() -> None:
+    result = apply_filters(
+        _prop(
+            municipality="Porto",
+            title="Apartamento T1",
+            description="Fração autónoma que inclui armazém.",
+        ),
+        SearchSettings(),
+    )
+    assert result.accepted
 
 
 def test_accepted_within_radius() -> None:

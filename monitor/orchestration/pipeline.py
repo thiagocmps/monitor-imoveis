@@ -145,7 +145,7 @@ async def _run_collector(
         result = apply_filters(normalized, settings.search)
         if not result.accepted:
             rejected += 1
-            logger.debug(
+            logger.info(
                 "Rejeitado (%s): %s — %s",
                 collector.source_name,
                 normalized.title,
