@@ -1,3 +1,5 @@
+> Este app foi vibe-coded, utilizando opencode com seu modelo gratuito, Big Pickle
+
 # Monitor Imobiliário
 
 Pipeline automático que recolhe, normaliza, filtra e pontua oportunidades
